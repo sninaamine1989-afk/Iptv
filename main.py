@@ -1,4 +1,4 @@
-from flask import Flask, Response, jsonify, redirect
+from flask import Flask, Response, jsonify
 from flask_cors import CORS
 import requests
 import re
@@ -18,13 +18,21 @@ def get_stream():
         target_url = "https://dlive.sx/stream/stream-91.php"
         res = requests.get(target_url, headers=HEADERS, timeout=10)
         
-        # 2. استخراج رابط ملف .m3u8 الحقيقي من الكود
+        # 2. استخراج رابط ملف .m3u8 الحقيقي
         match = re.search(r'(https?://[^\s\'"]+\.m3u8[^\s\'"]*)', res.text)
         
         if match:
-            stream_url = match.group(1)
-            # إعادة توجيه التطبيق أو المشغل مباشرة إلى رابط البث الخام
-            return redirect(stream_url, code=302)
+            m3u8_url = match.group(1)
+            
+            # 3. جلب ملف m3u8 الخام (بدون واجهة أو إعلانات الموقع)
+            stream_res = requests.get(m3u8_url, headers=HEADERS, timeout=10)
+            
+            # 4. إرجاع محتوى البث الصافي مع تفعيل CORS بالكامل
+            response = Response(stream_res.content, content_type='application/vnd.apple.mpegurl')
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = '*'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            return response
         else:
             return jsonify({"error": "Stream URL not found"}), 404
 
