@@ -1,30 +1,28 @@
 from flask import Flask, Response, jsonify
 from flask_cors import CORS
-import streamlink
 import requests
 
 app = Flask(__name__)
-CORS(app)  # السماح التام لجميع المواقع والتطبيقات بقراءة البث
+CORS(app)
 
 @app.route('/stream.m3u8')
 def get_stream():
     try:
-        # 1. جلب رابط البث الصافي من Streamlink
-        streams = streamlink.streams("https://dlive.sx/stream/stream-91.php")
-        if 'best' in streams:
-            stream_url = streams['best'].url
-            
-            # 2. قراءة محتوى ملف الـ m3u8 عبر الخادم نفسه
-            res = requests.get(stream_url, timeout=10)
-            
-            # 3. تمرير ملف m3u8 مباشرة إلى المشغل مع ترويسات CORS كاملة
-            response = Response(res.content, content_type='application/vnd.apple.mpegurl')
-            response.headers['Access-Control-Allow-Origin'] = '*'
-            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = '*'
-            return response
-        else:
-            return jsonify({"error": "Stream not found"}), 404
+        # إرسال طلب مع ترويسات متصفح وهمية لتجاوز الحماية
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://dlive.sx/'
+        }
+        
+        # رابط صفحة البث الأصلية
+        source_url = "https://dlive.sx/stream/stream-91.php"
+        res = requests.get(source_url, headers=headers, timeout=10)
+        
+        # تحويل الاستجابة وإضافة ترويسات CORS كاملة لتشغيلها في بلوجر
+        response = Response(res.content, content_type='text/html')
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
